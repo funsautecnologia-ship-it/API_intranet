@@ -1,0 +1,42 @@
+{
+  "name": "intrahopital",
+  "version": "1.0.0",
+  "description": "intranet hospital",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "node --watch server.js",
+    "selftest": "node scripts/selftest-agendamento.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/EdersonSouza/intrahopital.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/EdersonSouza/intrahopital/issues"
+  },
+  "homepage": "https://github.com/EdersonSouza/intrahopital#readme",
+  "dependencies": {
+    "@sendgrid/mail": "^8.1.5",
+    "axios": "^1.8.3",
+    "bcryptjs": "^3.0.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
+    "googleapis": "^148.0.0",
+    "jsonwebtoken": "^9.0.2",
+    "luxon": "^3.7.2",
+    "mongoose": "^8.12.1",
+    "multer": "^1.4.5-lts.2",
+    "resend": "^4.5.1",
+    "socket.io": "^4.8.1",
+    "validator": "^13.15.0"
+  },
+  "devDependencies": {
+    "jsdoc": "^4.0.4"
+  }
+}

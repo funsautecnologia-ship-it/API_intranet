@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: controllers/fileController.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: controllers/fileController.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>import fs from 'fs';
+import File from '../models/File.js';
+import { uploadToGoogleDrive, setFilePublic } from '../services/googleDriveService.js';
+import { google } from 'googleapis';
+
+/**
+ * Faz upload de um arquivo para o Google Drive e salva os dados no banco.
+ * Apenas administradores podem realizar esta ação.
+ * @param {import('express').Request} req - Requisição HTTP contendo o arquivo.
+ * @param {import('express').Response} res - Resposta HTTP.
+ */
+export const uploadFile = async (req, res) => {
+    try {
+        console.log('Arquivo recebido:', req.file); // Log para depuração
+        console.log('Tipo de arquivo:', req.body.filename); // Log para depuração
+        if (!req.file) {
+            return res.status(400).json({ message: 'Nenhum arquivo enviado.' });
+        }
+
+        const filePath = req.file.path; // Caminho do arquivo salvo localmente
+        const fileName = req.file.originalname;
+
+        // Faz upload do arquivo para o Google Drive
+        const fileData = await uploadToGoogleDrive(filePath, fileName);
+
+        // Define permissões públicas para o arquivo
+        await setFilePublic(fileData.id);
+
+        console.log('ID do arquivo no Google Drive:', fileData.id);
+        console.log('URL de download:', 'https://drive.google.com/uc?id=' + fileData.id);
+        console.log('URL de visualização:', 'https://drive.google.com/file/d/' + fileData.id + '/view');
+
+        // Salva os detalhes do arquivo no banco de dados
+       
+        const newFile = new File({
+            titulo: req.body.filename,
+            name: fileData.name,
+            idgoogle: 'https://drive.google.com/thumbnail?id='+ fileData.id,
+            url: 'https://drive.google.com/uc?id=' + fileData.id,
+            urlView: 'https://drive.google.com/file/d/' + fileData.id + '/view',
+            size: fileData.size,
+        });
+
+        console.log('Arquivo salvo:', newFile); // Log para depuração
+
+        await newFile.save();
+
+        // Remove o arquivo local após o upload
+        fs.unlinkSync(filePath);
+
+        res.status(201).json({ message: 'Arquivo enviado com sucesso.', file: newFile });
+    } catch (error) {
+        console.error('Erro ao enviar arquivo para o Google Drive:', error.message);
+        res.status(500).json({ message: 'Erro ao enviar arquivo.', error: error.message });
+    }
+};
+
+/**
+ * Lista todos os arquivos cadastrados.
+ * Disponível para todos os usuários autenticados.
+ * @param {import('express').Request} req - Requisição HTTP.
+ * @param {import('express').Response} res - Resposta HTTP.
+ */
+export const getFiles = async (req, res) => {
+    try {
+        const files = await File.find().populate();
+        res.json(files);
+    } catch (error) {
+        res.status(500).json({ message: 'Erro ao buscar arquivos.', error: error.message });
+    }
+};
+
+/**
+ * Deleta um arquivo do Google Drive e do banco de dados.
+ * Apenas administradores podem realizar esta ação.
+ * @param {import('express').Request} req - Requisição HTTP contendo o ID do arquivo.
+ * @param {import('express').Response} res - Resposta HTTP.
+ */
+export const deleteFile = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        // Busca o arquivo no banco de dados
+        const file = await File.findById(id);
+        if (!file) {
+            return res.status(404).json({ message: 'Arquivo não encontrado.' });
+        }
+
+        // Remove o arquivo do Google Drive
+        const drive = google.drive({ version: 'v3', auth: new google.auth.GoogleAuth({
+            keyFile: './credentials.json',
+            scopes: ['https://www.googleapis.com/auth/drive'],
+        }) });
+
+        await drive.files.delete({ fileId: file.url.split('id=')[1] });
+
+        // Remove o arquivo do banco de dados
+        await File.findByIdAndDelete(id);
+        console.log('Arquivo deletado:', file); // Log para depuração
+
+        res.status(200).json({ message: 'Arquivo deletado com sucesso.' });
+    } catch (error) {
+        console.error('Erro ao deletar arquivo:', error.message);
+        res.status(500).json({ message: 'Erro ao deletar arquivo.', error: error.message });
+    }
+};
+
+
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Global</h3><ul><li><a href="global.html#approveComment">approveComment</a></li><li><a href="global.html#avatar">avatar</a></li><li><a href="global.html#changePassword">changePassword</a></li><li><a href="global.html#createEvent">createEvent</a></li><li><a href="global.html#createTicket">createTicket</a></li><li><a href="global.html#decrypt">decrypt</a></li><li><a href="global.html#deleteComment">deleteComment</a></li><li><a href="global.html#deleteEvent">deleteEvent</a></li><li><a href="global.html#deleteFile">deleteFile</a></li><li><a href="global.html#deleteTicket">deleteTicket</a></li><li><a href="global.html#deleteUser">deleteUser</a></li><li><a href="global.html#encrypt">encrypt</a></li><li><a href="global.html#getEventById">getEventById</a></li><li><a href="global.html#getEvents">getEvents</a></li><li><a href="global.html#getFiles">getFiles</a></li><li><a href="global.html#getMessages">getMessages</a></li><li><a href="global.html#getPendingComments">getPendingComments</a></li><li><a href="global.html#getTicketById">getTicketById</a></li><li><a href="global.html#getTickets">getTickets</a></li><li><a href="global.html#getTicketsByStatus">getTicketsByStatus</a></li><li><a href="global.html#io">io</a></li><li><a href="global.html#loadSession">loadSession</a></li><li><a href="global.html#login">login</a></li><li><a href="global.html#markMessagesAsRead">markMessagesAsRead</a></li><li><a href="global.html#me">me</a></li><li><a href="global.html#register">register</a></li><li><a href="global.html#resetPassword">resetPassword</a></li><li><a href="global.html#resetPasswordToken">resetPasswordToken</a></li><li><a href="global.html#sendMessage">sendMessage</a></li><li><a href="global.html#updateTicketStatusAndDiagnostic">updateTicketStatusAndDiagnostic</a></li><li><a href="global.html#updateUser">updateUser</a></li><li><a href="global.html#uploadFile">uploadFile</a></li><li><a href="global.html#users">users</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.4</a> on Mon Jun 02 2025 15:07:07 GMT-0400 (Horário Padrão do Amazonas)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

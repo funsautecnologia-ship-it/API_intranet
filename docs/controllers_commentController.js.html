@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: controllers/commentController.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: controllers/commentController.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>import Comment from '../models/Comment.js';
+
+/**
+ * Busca comentários pendentes com paginação.
+ * @param {number} page - Página atual para paginação.
+ * @param {number} limit - Quantidade de comentários por página.
+ * @returns {Promise&lt;Array>} Lista de comentários pendentes.
+ * @throws {Error} Se ocorrer erro ao buscar comentários.
+ */
+export const getPendingComments = async (page = 1, limit = 10) => {
+    try {
+        const comments = await Comment.find({ status: 'pending' })
+            .skip((page - 1) * limit)
+            .limit(limit)
+            .sort({ createdAt: -1 }); // Ordenação do mais recente para o mais antigo
+        return comments;
+    } catch (error) {
+        throw new Error('Erro ao buscar comentários pendentes');
+    }
+};
+
+/**
+ * Aprova um comentário pelo ID.
+ * @param {import('express').Request} req
+ * @param {import('express').Response} res
+ */
+export const approveComment = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const updatedComment = await Comment.findByIdAndUpdate(id, { status: 'approved' }, { new: true });
+
+        if (!updatedComment) {
+            return res.status(404).json({ message: 'Comentário não encontrado' });
+        }
+
+        res.json({ message: 'Comentário aprovado com sucesso', comment: updatedComment });
+    } catch (error) {
+        res.status(500).json({ message: 'Erro ao aprovar comentário', error: error.message });
+    }
+};
+
+/**
+ * Deleta um comentário pelo ID.
+ * @param {import('express').Request} req
+ * @param {import('express').Response} res
+ */
+export const deleteComment = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const deletedComment = await Comment.findByIdAndDelete(id);
+
+        if (!deletedComment) {
+            return res.status(404).json({ message: 'Comentário não encontrado' });
+        }
+
+        res.json({ message: 'Comentário excluído com sucesso' });
+    } catch (error) {
+        res.status(500).json({ message: 'Erro ao excluir comentário', error: error.message });
+    }
+};
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Global</h3><ul><li><a href="global.html#approveComment">approveComment</a></li><li><a href="global.html#avatar">avatar</a></li><li><a href="global.html#changePassword">changePassword</a></li><li><a href="global.html#createEvent">createEvent</a></li><li><a href="global.html#createTicket">createTicket</a></li><li><a href="global.html#decrypt">decrypt</a></li><li><a href="global.html#deleteComment">deleteComment</a></li><li><a href="global.html#deleteEvent">deleteEvent</a></li><li><a href="global.html#deleteFile">deleteFile</a></li><li><a href="global.html#deleteTicket">deleteTicket</a></li><li><a href="global.html#deleteUser">deleteUser</a></li><li><a href="global.html#encrypt">encrypt</a></li><li><a href="global.html#getEventById">getEventById</a></li><li><a href="global.html#getEvents">getEvents</a></li><li><a href="global.html#getFiles">getFiles</a></li><li><a href="global.html#getMessages">getMessages</a></li><li><a href="global.html#getPendingComments">getPendingComments</a></li><li><a href="global.html#getTicketById">getTicketById</a></li><li><a href="global.html#getTickets">getTickets</a></li><li><a href="global.html#getTicketsByStatus">getTicketsByStatus</a></li><li><a href="global.html#io">io</a></li><li><a href="global.html#loadSession">loadSession</a></li><li><a href="global.html#login">login</a></li><li><a href="global.html#markMessagesAsRead">markMessagesAsRead</a></li><li><a href="global.html#me">me</a></li><li><a href="global.html#register">register</a></li><li><a href="global.html#resetPassword">resetPassword</a></li><li><a href="global.html#resetPasswordToken">resetPasswordToken</a></li><li><a href="global.html#sendMessage">sendMessage</a></li><li><a href="global.html#updateTicketStatusAndDiagnostic">updateTicketStatusAndDiagnostic</a></li><li><a href="global.html#updateUser">updateUser</a></li><li><a href="global.html#uploadFile">uploadFile</a></li><li><a href="global.html#users">users</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.4</a> on Mon Jun 02 2025 15:07:07 GMT-0400 (Horário Padrão do Amazonas)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

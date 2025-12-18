@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: server.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: server.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>/**
+ * Arquivo principal do backend.
+ * Inicializa o servidor Express, configura o Socket.IO para comunicação em tempo real,
+ * registra middlewares e rotas, e exporta a instância do Socket.IO.
+ */
+
+import { Server } from 'socket.io';
+import http from 'http';
+import express from 'express';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import authRoutes from './routes/auth.js';
+import fileRoutes from './routes/files.js';
+import commentRoutes from './routes/comments.js';
+import eventRoutes from './routes/eventRoutes.js';
+import './database/connection.js';
+import ticketRoutes from './routes/ticketRoutes.js';
+import chatRoutes from './routes/chat.js';
+import User from './models/User.js';
+import ChatMessage from './models/ChatMessage.js';
+import userRoutes from './routes/user.js';
+import { sendMessage } from './controllers/chatMessageController.js'
+
+/**
+ * Objeto para mapear usuários conectados e seus socket IDs.
+ * @type {Object.&lt;string, string>}
+ */
+export const users = {};
+
+dotenv.config();
+const app = express();
+
+// Middlewares globais
+app.use(cors());
+app.use(express.json());
+
+const server = http.createServer(app);
+
+/**
+ * Instância do Socket.IO para comunicação em tempo real.
+ */
+const io = new Server(server, {
+    cors: {
+        origin: '*',
+        methods: ['GET', 'POST', 'PUT', 'DELETE'],
+        allowedHeaders: ['Content-Type', 'Authorization'],
+    },
+});
+
+/**
+ * Gerencia eventos de conexão de clientes via Socket.IO.
+ */
+io.on('connection', (socket) => {
+    console.log('Novo cliente conectado:', socket.id);
+
+    socket.on('register', async (userId) => {
+        users[userId] = socket.id;
+        // Envia a lista atualizada de usuários online para todos
+        const onlineUserIds = Object.keys(users);
+        const onlineUsers = await User.find({ _id: { $in: onlineUserIds } }, 'name email');
+        io.emit('online-users', onlineUsers);
+    });
+
+    socket.on('unregister', async (userId) => {
+        if (users[userId] === socket.id) {
+            delete users[userId];
+            const onlineUserIds = Object.keys(users);
+            const onlineUsers = await User.find({ _id: { $in: onlineUserIds } }, 'name email');
+            io.emit('online-users', onlineUsers);
+        }
+    });
+
+    socket.on('private-message', async ({ to, message, from, id }) => {
+        if (users[to]) {
+            io.to(users[to]).emit('private-message', { from, message, sender: from, id });
+        }
+        sendMessage(to, from, message); // Salva a mensagem no banco de dados
+    });
+
+    socket.on('typing', ({ to, from }) => {
+        const targetSocketId = users[to];
+        if (targetSocketId) {
+            io.to(targetSocketId).emit('typing', { from, to });
+        }
+    });
+
+    socket.on('message-read', ({ from, to, messageIds }) => {
+        const targetSocketId = users[to];
+        if (targetSocketId) {
+            io.to(targetSocketId).emit('message-read', { from, to, messageIds });
+        }
+    });
+
+    socket.on('disconnect', async () => {
+        for (const userId in users) {
+            if (users[userId] === socket.id) {
+                delete users[userId];
+                break;
+            }
+        }
+        // Envia a lista atualizada de usuários online para todos
+        const onlineUserIds = Object.keys(users);
+        const onlineUsers = await User.find({ _id: { $in: onlineUserIds } }, 'name email');
+        io.emit('online-users', onlineUsers);
+        console.log('Cliente desconectado:', socket.id);
+    });
+});
+
+/**
+ * Middleware para logar todas as requisições recebidas.
+ */
+app.use((req, res, next) => {
+    console.log(`${req.method} ${req.url} - Origin: ${req.headers.origin}`);
+    next();
+});
+
+// Rotas da aplicação
+app.use('/api/auth', authRoutes);
+app.use('/api/files', fileRoutes);
+app.use('/api/comments', commentRoutes);
+app.use('/api/events', eventRoutes);
+app.use('/api/tickets', ticketRoutes);
+app.use('/api/chat', chatRoutes);
+app.use('/api/users', userRoutes); // Rota para usuários
+
+const PORT = process.env.PORT || 3000;
+
+/**
+ * Inicializa o servidor HTTP.
+ */
+server.listen(PORT, '0.0.0.0', () => console.log(`Servidor rodando na porta ${PORT}`));
+
+/**
+ * Exporta a instância do Socket.IO para uso nos controladores.
+ */
+export { io };</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Global</h3><ul><li><a href="global.html#approveComment">approveComment</a></li><li><a href="global.html#avatar">avatar</a></li><li><a href="global.html#changePassword">changePassword</a></li><li><a href="global.html#createEvent">createEvent</a></li><li><a href="global.html#createTicket">createTicket</a></li><li><a href="global.html#decrypt">decrypt</a></li><li><a href="global.html#deleteComment">deleteComment</a></li><li><a href="global.html#deleteEvent">deleteEvent</a></li><li><a href="global.html#deleteFile">deleteFile</a></li><li><a href="global.html#deleteTicket">deleteTicket</a></li><li><a href="global.html#deleteUser">deleteUser</a></li><li><a href="global.html#encrypt">encrypt</a></li><li><a href="global.html#getEventById">getEventById</a></li><li><a href="global.html#getEvents">getEvents</a></li><li><a href="global.html#getFiles">getFiles</a></li><li><a href="global.html#getMessages">getMessages</a></li><li><a href="global.html#getPendingComments">getPendingComments</a></li><li><a href="global.html#getTicketById">getTicketById</a></li><li><a href="global.html#getTickets">getTickets</a></li><li><a href="global.html#getTicketsByStatus">getTicketsByStatus</a></li><li><a href="global.html#io">io</a></li><li><a href="global.html#loadSession">loadSession</a></li><li><a href="global.html#login">login</a></li><li><a href="global.html#markMessagesAsRead">markMessagesAsRead</a></li><li><a href="global.html#me">me</a></li><li><a href="global.html#register">register</a></li><li><a href="global.html#resetPassword">resetPassword</a></li><li><a href="global.html#resetPasswordToken">resetPasswordToken</a></li><li><a href="global.html#sendMessage">sendMessage</a></li><li><a href="global.html#updateTicketStatusAndDiagnostic">updateTicketStatusAndDiagnostic</a></li><li><a href="global.html#updateUser">updateUser</a></li><li><a href="global.html#uploadFile">uploadFile</a></li><li><a href="global.html#users">users</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.4</a> on Mon Jun 02 2025 15:07:07 GMT-0400 (Horário Padrão do Amazonas)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

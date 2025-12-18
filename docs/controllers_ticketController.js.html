@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: controllers/ticketController.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: controllers/ticketController.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>import Ticket from '../models/Ticket.js';
+import { io } from '../server.js';
+
+/**
+ * Cria um novo chamado.
+ * @param {import('express').Request} req - Requisição HTTP contendo os dados do chamado.
+ * @param {import('express').Response} res - Resposta HTTP.
+ */
+export const createTicket = async (req, res) => {
+    try {
+        const { title, description } = req.body;
+
+        if (!title || !description) {
+            return res.status(400).json({ message: 'Título e descrição são obrigatórios.' });
+        }
+
+        const ticket = new Ticket({
+            title,
+            description,
+            priority: req.body.priority || 'Baixa', // Padrão
+            // 'Baixa' se não fornecido
+            status: 'open', // Padrão
+            createdBy: req.user._id, // Usuário autenticado
+        });
+
+        await ticket.save();
+
+        // Emite um evento para o frontend informando que um novo chamado foi criado
+        const populatedTicket = await Ticket.findById(ticket._id).populate('createdBy', 'name email');
+
+        io.emit('ticket-created', {
+            message: 'Novo chamado criado!',
+            ticket: populatedTicket,
+        });
+        res.status(201).json({ message: 'Chamado criado com sucesso.', ticket });
+    } catch (error) {
+        console.error('Erro ao criar chamado:', error); // Log para depuração
+        res.status(500).json({ message: 'Erro ao criar chamado.', error: error.message });
+    }
+};
+
+/**
+ * Lista todos os chamados.
+ * Usuários comuns veem apenas seus chamados; administradores veem todos.
+ * @param {import('express').Request} req - Requisição HTTP.
+ * @param {import('express').Response} res - Resposta HTTP.
+ */
+export const getTickets = async (req, res) => {
+    const { user } = req; // Usuário autenticado
+
+    try {
+        let tickets;
+        if (user.role !== 'admin') {
+            tickets = await Ticket.find({ createdBy: user._id }).populate('createdBy', 'name email');
+        }else {
+            tickets = await Ticket.find().populate('createdBy', 'name email');
+            console.log('Chamados encontrados:', tickets); // Log para depuração
+
+        }
+        res.status(200).json(tickets);
+    } catch (error) {
+        res.status(500).json({ message: 'Erro ao buscar chamados.', error: error.message });
+    }
+};
+
+/**
+ * Lista um chamado específico pelo ID.
+ * @param {import('express').Request} req - Requisição HTTP contendo o ID do chamado.
+ * @param {import('express').Response} res - Resposta HTTP.
+ */
+export const getTicketById = async (req, res) => {
+    try {
+        const ticket = await Ticket.findById(req.params.id).populate('createdBy', 'name email');
+        if (!ticket) {
+            return res.status(404).json({ message: 'Chamado não encontrado.' });
+        }
+        res.status(200).json(ticket);
+    } catch (error) {
+        res.status(500).json({ message: 'Erro ao buscar chamado.', error: error.message });
+    }
+};
+
+/**
+ * Lista chamados por status.
+ * Usuários comuns veem apenas seus chamados; administradores veem todos.
+ * @param {import('express').Request} req - Requisição HTTP contendo o status.
+ * @param {import('express').Response} res - Resposta HTTP.
+ */
+export const getTicketsByStatus = async (req, res) => {
+    console.log('Tentando buscar chamados por status...'); // Log para depuração
+     const { user } = req; // Usuário autenticado
+     const status = req.params.status; 
+    try {
+        // Verifica se o usuário é um administrador
+        let tickets;
+        if (user.role !== 'admin') {
+            tickets = await Ticket.find({ status, createdBy: user._id }).populate('createdBy', 'name email');
+            console.log('Chamados encontrados para o usuário:', tickets); // Log para depuração
+        }
+        else{   
+            tickets = await Ticket.find({ status }).populate('createdBy', 'name email');
+            console.log('Chamados encontrados:', tickets); 
+        }
+        if (!tickets || tickets.length === 0) {
+            return res.status(404).json({ message: 'Nenhum chamado encontrado.' });
+        }
+        res.status(200).json(tickets);
+    } catch (error) {
+        res.status(500).json({ message: 'Erro ao buscar chamados.', error: error.message });
+        console.error('Erro ao buscar chamados:', error); // Log para depuração
+    }
+
+};
+
+/**
+ * Atualiza o status e o diagnóstico de um chamado.
+ * @param {import('express').Request} req - Requisição HTTP contendo o ID do chamado e os dados de atualização.
+ * @param {import('express').Response} res - Resposta HTTP.
+ */
+export const updateTicketStatusAndDiagnostic = async (req, res) => {
+    
+    try {
+        const { id } = req.params;
+        const {data} = req.body; // Desestruturando os dados recebidos
+        const { status, diagnostic } = data; // Desestruturando os dados recebidos
+        const { user } = req; // Usuário autenticado
+
+        console.log('Tentando atualizar status do chamado...'); // Log para depuração
+        console.log('ID do chamado:', id); // Log para depuração
+
+        console.log('Novo status:', status); // Log para depuração
+
+        console.log('Novo diagnóstico:', diagnostic); // Log para depuração
+
+
+        const ticket = await Ticket.findById(id);
+        if (!ticket) {
+            return res.status(404).json({ message: 'Chamado não encontrado.' });
+           
+        }
+
+        ticket.status = status;
+        ticket.diagnostic = diagnostic; // Atualizando o diagnóstico
+        ticket.updatedBy = user._id; // Atualizando o usuário que fez a atualização
+        ticket.updatedAt = new Date(); // Atualizando a data de atualização
+        await ticket.save();
+
+        res.status(200).json({ message: 'Status do chamado atualizado com sucesso.', ticket });
+    } catch (error) {
+        res.status(500).json({ message: 'Erro ao atualizar status do chamado.', error: error.message });
+        console.error('Erro ao atualizar status do chamado:', error); // Log para depuração
+    }
+    };
+
+/**
+ * Deleta um chamado (apenas administradores podem realizar esta ação).
+ * @param {import('express').Request} req - Requisição HTTP contendo o ID do chamado.
+ * @param {import('express').Response} res - Resposta HTTP.
+ */
+export const deleteTicket = async (req, res) => {
+    console.log('Tentando deletar chamado...'); // Log para depuração
+    try {
+        const { id } = req.params;
+        console.log('ID do chamado:', id); // Log para depuração
+        const ticket = await Ticket.findById(id);
+        if (!ticket) {
+            console.log('Chamado não encontrado.'); // Log para depuração
+            return res.status(404).json({ message: 'Chamado não encontrado.' });
+        }
+
+        await Ticket.findByIdAndDelete(id);
+        io.emit('ticket-deleted', {
+            message: 'Chamado deletado!',
+            ticketId: id,
+        });
+        console.log('Chamado deletado:', ticket); // Log para depuração
+        res.status(200).json({ message: 'Chamado deletado com sucesso.' });
+    } catch (error) {
+        res.status(500).json({ message: 'Erro ao deletar chamado.', error: error.message });
+        console.error('Erro ao deletar chamado:', error); // Log para depuração
+    }
+};
+
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Global</h3><ul><li><a href="global.html#approveComment">approveComment</a></li><li><a href="global.html#avatar">avatar</a></li><li><a href="global.html#changePassword">changePassword</a></li><li><a href="global.html#createEvent">createEvent</a></li><li><a href="global.html#createTicket">createTicket</a></li><li><a href="global.html#decrypt">decrypt</a></li><li><a href="global.html#deleteComment">deleteComment</a></li><li><a href="global.html#deleteEvent">deleteEvent</a></li><li><a href="global.html#deleteFile">deleteFile</a></li><li><a href="global.html#deleteTicket">deleteTicket</a></li><li><a href="global.html#deleteUser">deleteUser</a></li><li><a href="global.html#encrypt">encrypt</a></li><li><a href="global.html#getEventById">getEventById</a></li><li><a href="global.html#getEvents">getEvents</a></li><li><a href="global.html#getFiles">getFiles</a></li><li><a href="global.html#getMessages">getMessages</a></li><li><a href="global.html#getPendingComments">getPendingComments</a></li><li><a href="global.html#getTicketById">getTicketById</a></li><li><a href="global.html#getTickets">getTickets</a></li><li><a href="global.html#getTicketsByStatus">getTicketsByStatus</a></li><li><a href="global.html#io">io</a></li><li><a href="global.html#loadSession">loadSession</a></li><li><a href="global.html#login">login</a></li><li><a href="global.html#markMessagesAsRead">markMessagesAsRead</a></li><li><a href="global.html#me">me</a></li><li><a href="global.html#register">register</a></li><li><a href="global.html#resetPassword">resetPassword</a></li><li><a href="global.html#resetPasswordToken">resetPasswordToken</a></li><li><a href="global.html#sendMessage">sendMessage</a></li><li><a href="global.html#updateTicketStatusAndDiagnostic">updateTicketStatusAndDiagnostic</a></li><li><a href="global.html#updateUser">updateUser</a></li><li><a href="global.html#uploadFile">uploadFile</a></li><li><a href="global.html#users">users</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.4</a> on Mon Jun 02 2025 15:07:07 GMT-0400 (Horário Padrão do Amazonas)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

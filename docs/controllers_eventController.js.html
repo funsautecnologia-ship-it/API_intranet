@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: controllers/eventController.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: controllers/eventController.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>import Event from '../models/Event.js';
+import { uploadToGoogleDrive, setFilePublic } from '../services/googleDriveService.js';
+import { google } from 'googleapis';
+import fs from 'fs';
+
+/**
+ * Cria um evento com upload de foto para o Google Drive.
+ * @param {import('express').Request} req - Requisição HTTP contendo os dados do evento e o arquivo.
+ * @param {import('express').Response} res - Resposta HTTP.
+ */
+export const createEvent = async (req, res) => {
+    try {
+        const { title, description } = req.body;
+        console.log('Dados do evento:', req.body); // Log para depuração
+
+        // Verifica se os campos obrigatórios foram fornecidos
+        if (!title || !description) {
+            return res.status(400).json({ message: 'Título e descricao são obrigatórios.' });
+        }
+
+        // Faz upload do arquivo para o Google Drive
+        const fileData = await uploadToGoogleDrive(req.file.path, req.file.originalname);
+
+        // Define permissões públicas para o arquivo
+        await setFilePublic(fileData.id);
+
+        console.log('ID do arquivo no Google Drive:', fileData.id);
+        console.log('URL de download:', 'https://drive.google.com/uc?id=' + fileData.id);
+        console.log('URL de visualização:', 'https://drive.google.com/file/d/' + fileData.id + '/view');
+
+        // Cria o evento
+        const event = new Event({
+            title,
+            description,
+            img: 'https://drive.google.com/thumbnail?id=' + fileData.id,
+        });
+
+        await event.save();
+
+        // Remove o arquivo local após o upload
+        fs.unlinkSync(req.file.path);
+
+        res.status(201).json({ message: 'Evento criado com sucesso.', event });
+    } catch (error) {
+        console.error('Erro ao criar evento:', error.message);
+        res.status(500).json({ message: 'Erro ao criar evento.', error: error.message });
+    }
+};
+
+/**
+ * Busca todos os eventos cadastrados.
+ * @param {import('express').Request} req - Requisição HTTP.
+ * @param {import('express').Response} res - Resposta HTTP.
+ */
+export const getEvents = async (req, res) => {
+    try {
+        const events = await Event.find().populate(); 
+        res.status(200).json(events);
+    } catch (error) {
+        res.status(500).json({ message: 'Erro ao buscar eventos.', error: error.message });
+    }
+};
+
+/**
+ * Remove um evento pelo ID, incluindo o arquivo do Google Drive.
+ * @param {import('express').Request} req - Requisição HTTP contendo o ID do evento.
+ * @param {import('express').Response} res - Resposta HTTP.
+ */
+export const deleteEvent = async (req, res) => {
+    try {
+        const { id } = req.params;
+        console.log('ID do evento:', id); // Log para depuração
+
+        // Verifica se o evento existe
+        const event = await Event.findById(id);
+        if (!event) {
+            
+            return res.status(404).json({ message: 'Evento não encontrado.' });
+        }
+
+        // Remove o arquivo do Google Drive
+        const drive = google.drive({ version: 'v3', auth: new google.auth.GoogleAuth({
+            keyFile: './credentials.json',
+            scopes: ['https://www.googleapis.com/auth/drive'],
+        }) });
+
+        await drive.files.delete({
+            fileId: event.img.split('id=')[1],
+        });
+        // Verifica se o usuário autenticado é o criador do evento ou um administrador
+       //if (event.createdBy.toString() !== req.user._id.toString() &amp;&amp; req.user.role !== 'admin') {
+            //return res.status(403).json({ message: 'Acesso negado. Você não pode remover este evento.' });
+        //}
+
+        await Event.findByIdAndDelete(id);
+        res.status(200).json({ message: 'Evento removido com sucesso.' });
+    } catch (error) {
+        res.status(500).json({ message: 'Erro ao remover evento.', error: error.message });
+    }
+};
+
+/**
+ * Busca um evento pelo ID.
+ * @param {import('express').Request} req - Requisição HTTP contendo o ID do evento.
+ * @param {import('express').Response} res - Resposta HTTP.
+ */
+export const getEventById = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        // Busca o evento no banco de dados pelo ID
+        const event = await Event.findById(id);
+        if (!event) {
+            return res.status(404).json({ message: 'Evento não encontrado.' });
+        }
+
+        res.status(200).json(event);
+    } catch (error) {
+        console.error('Erro ao buscar evento:', error.message);
+        res.status(500).json({ message: 'Erro ao buscar evento.', error: error.message });
+    }
+};</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Global</h3><ul><li><a href="global.html#approveComment">approveComment</a></li><li><a href="global.html#avatar">avatar</a></li><li><a href="global.html#changePassword">changePassword</a></li><li><a href="global.html#createEvent">createEvent</a></li><li><a href="global.html#createTicket">createTicket</a></li><li><a href="global.html#decrypt">decrypt</a></li><li><a href="global.html#deleteComment">deleteComment</a></li><li><a href="global.html#deleteEvent">deleteEvent</a></li><li><a href="global.html#deleteFile">deleteFile</a></li><li><a href="global.html#deleteTicket">deleteTicket</a></li><li><a href="global.html#deleteUser">deleteUser</a></li><li><a href="global.html#encrypt">encrypt</a></li><li><a href="global.html#getEventById">getEventById</a></li><li><a href="global.html#getEvents">getEvents</a></li><li><a href="global.html#getFiles">getFiles</a></li><li><a href="global.html#getMessages">getMessages</a></li><li><a href="global.html#getPendingComments">getPendingComments</a></li><li><a href="global.html#getTicketById">getTicketById</a></li><li><a href="global.html#getTickets">getTickets</a></li><li><a href="global.html#getTicketsByStatus">getTicketsByStatus</a></li><li><a href="global.html#io">io</a></li><li><a href="global.html#loadSession">loadSession</a></li><li><a href="global.html#login">login</a></li><li><a href="global.html#markMessagesAsRead">markMessagesAsRead</a></li><li><a href="global.html#me">me</a></li><li><a href="global.html#register">register</a></li><li><a href="global.html#resetPassword">resetPassword</a></li><li><a href="global.html#resetPasswordToken">resetPasswordToken</a></li><li><a href="global.html#sendMessage">sendMessage</a></li><li><a href="global.html#updateTicketStatusAndDiagnostic">updateTicketStatusAndDiagnostic</a></li><li><a href="global.html#updateUser">updateUser</a></li><li><a href="global.html#uploadFile">uploadFile</a></li><li><a href="global.html#users">users</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.4</a> on Mon Jun 02 2025 15:07:07 GMT-0400 (Horário Padrão do Amazonas)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>
