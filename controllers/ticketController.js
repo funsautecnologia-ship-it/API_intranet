@@ -145,9 +145,6 @@ export const getTicketsByStatus = async (req, res) => {
                 .populate('setor', 'nome');
             console.log('Chamados encontrados:', tickets);
         }
-        if (!tickets || tickets.length === 0) {
-            return res.status(404).json({ message: 'Nenhum chamado encontrado.' });
-        }
         res.status(200).json(tickets);
     } catch (error) {
         res.status(500).json({ message: 'Erro ao buscar chamados.', error: error.message });
